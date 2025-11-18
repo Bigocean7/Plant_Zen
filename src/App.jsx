@@ -27,68 +27,25 @@ export default function PlantDiaryKit() {
     try {
       const base64Data = image.split(',')[1];
       
-      const apiResponse = await fetch("https://api.anthropic.com/v1/messages", {
+      // Call YOUR backend API instead of Anthropic directly
+      const apiResponse = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": import.meta.env.ANTHROPIC_API_KEY,          
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image",
-                  source: {
-                    type: "base64",
-                    media_type: "image/jpeg",
-                    data: base64Data
-                  }
-                },
-                {
-                  type: "text",
-                  text: `你是一个温柔的植物日记助手。用户上传了植物照片${description ? `，并写道："${description}"` : ''}。
-
-请用中文回应，分三个维度：
-
-1. **植物观察回应 (Plant Mirroring)** - 从植物的状态映射到用户的内心状态，让用户感到"被看见"。例如：
-   - "你今天注意到叶子的纹理，是不是你也处在一个慢下来的状态？"
-   - "你观察到枯萎边缘，我感受到你对变化的敏感。"
-
-2. **人类情绪反射 (Emotional Reflection)** - 温柔地反映用户可能的情绪状态：
-   - "从你今天的观察看，你似乎带着一点点思念。"
-   - "你注意到这些细节，也许你最近在经历一些告别？"
-
-3. **自然启发 (Nature-based Guidance)** - 提供温柔的、与自然连接的小建议：
-   - "要不要花一分钟，试试看用手触摸那片叶子的温度？"
-   - "今天可以试着写一句关于颜色的小诗。"
-
-请用温暖、诗意的语言，避免说教。让用户感到被理解和陪伴。
-
-请以JSON格式回复：
-{
-  "plantMirroring": "植物观察回应内容",
-  "emotionalReflection": "情绪反射内容",
-  "natureGuidance": "自然启发建议"
-}`
-                }
-              ]
-            }
-          ]
+          image: base64Data,
+          description: description
         })
       });
 
-      const data = await apiResponse.json();
-      const textContent = data.content
-        .filter(item => item.type === "text")
-        .map(item => item.text)
-        .join("");
-      
-      const cleanedText = textContent.replace(/```json\n?|\n?```/g, '').trim();
-      const parsedResponse = JSON.parse(cleanedText);
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json();
+        console.error('API Error:', errorData);
+        throw new Error(`API error: ${apiResponse.status}`);
+      }
+
+      const parsedResponse = await apiResponse.json();
       
       setResponse(parsedResponse);
       
@@ -105,8 +62,8 @@ export default function PlantDiaryKit() {
     } catch (error) {
       console.error('分析错误:', error);
       setResponse({
-        plantMirroring: "抱歉，暂时无法完成分析。请稍后再试。",
-        emotionalReflection: "",
+        plantMirroring: "抱歉，暂时无法完成分析。请打开浏览器控制台 (F12) 查看详细错误信息。",
+        emotionalReflection: "如果问题持续，请检查 Vercel 环境变量是否正确设置。",
         natureGuidance: ""
       });
     }
@@ -216,26 +173,30 @@ export default function PlantDiaryKit() {
               </div>
 
               {/* Emotional Reflection */}
-              <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-5">
-                <div className="flex items-start gap-3 mb-3">
-                  <Heart className="w-5 h-5 text-pink-600 mt-1 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-2">情绪反射</h3>
-                    <p className="text-gray-700 leading-relaxed">{response.emotionalReflection}</p>
+              {response.emotionalReflection && (
+                <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-5">
+                  <div className="flex items-start gap-3 mb-3">
+                    <Heart className="w-5 h-5 text-pink-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-2">情绪反射</h3>
+                      <p className="text-gray-700 leading-relaxed">{response.emotionalReflection}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Nature Guidance */}
-              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-5">
-                <div className="flex items-start gap-3 mb-3">
-                  <Sparkles className="w-5 h-5 text-amber-600 mt-1 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-2">自然启发</h3>
-                    <p className="text-gray-700 leading-relaxed">{response.natureGuidance}</p>
+              {response.natureGuidance && (
+                <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-5">
+                  <div className="flex items-start gap-3 mb-3">
+                    <Sparkles className="w-5 h-5 text-amber-600 mt-1 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-2">自然启发</h3>
+                      <p className="text-gray-700 leading-relaxed">{response.natureGuidance}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
